@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include "usbkeyboard.h"
 #include <pthread.h>
+#include <linux/fb.h>
+
 
 /* Update SERVER_HOST to be the IP address of
  * the chat server you are connecting to
@@ -34,13 +36,13 @@
 
 #define BUFFER_SIZE 256
 #define COLS 64
-#define ROWS 24
+// #define ROWS 24
 
-/* Layout: receive region + separator + input region (bottom 2 rows) */
-#define RX_ROWS (ROWS - 3)     /* top region height */
-#define SEP_ROW (ROWS - 3)     /* separator line row */
-#define IN_ROW0 (ROWS - 2)     /* input row 0 */
-#define IN_ROW1 (ROWS - 1)     /* input row 1 */
+// /* Layout: receive region + separator + input region (bottom 2 rows) */
+// #define RX_ROWS (ROWS - 3)     /* top region height */
+// #define SEP_ROW (ROWS - 3)     /* separator line row */
+// #define IN_ROW0 (ROWS - 2)     /* input row 0 */
+// #define IN_ROW1 (ROWS - 1)     /* input row 1 */
 
 #define INPUT_MAX 256
 #define PROMPT "> "
@@ -50,6 +52,10 @@
 #define REPEAT_RATE_MS  45
 
 // Globals
+
+static int COLS, ROWS;
+static int RX_ROWS, SEP_ROW, IN_ROW0, IN_ROW1;
+
 static int sockfd = -1; /* Socket file descriptor */
 static struct libusb_device_handle *keyboard = NULL;
 static uint8_t endpoint_address = 0;
@@ -71,6 +77,25 @@ static uint8_t held_keycode = 0;
 static uint8_t held_mods = 0;
 static int held_active = 0;
 static long long held_next_ms = 0;
+
+// defined in fbputchar.c 
+extern struct fb_var_screeninfo fb_vinfo;
+
+static void compute_screen_layout(void) {
+    //  FONT_WIDTH=8 => 16 pixels per char
+    //  FONT_HEIGHT=16 => 32 pixels per char
+  COLS = (int)(fb_vinfo.xres / 16);
+  ROWS = (int)(fb_vinfo.yres / 32);
+
+  if (COLS < 10) COLS = 10;
+  if (ROWS < 6)  ROWS = 6;
+
+  RX_ROWS = ROWS - 3;
+  SEP_ROW = ROWS - 3;
+  IN_ROW0 = ROWS - 2;
+  IN_ROW1 = ROWS - 1;
+}
+
 
 static long long now_ms(void) {
   struct timeval tv;
@@ -365,6 +390,7 @@ int main()
     fprintf(stderr, "Error: Could not open framebuffer: %d\n", err);
     exit(1);
   }
+  compute_screen_layout();
 
   pthread_mutex_lock(&fb_lock);
   clear_screen();
