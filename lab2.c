@@ -35,7 +35,7 @@
 #define SERVER_PORT 42000
 
 #define BUFFER_SIZE 256
-#define COLS 64
+// #define COLS 64
 // #define ROWS 24
 
 // /* Layout: receive region + separator + input region (bottom 2 rows) */
@@ -53,8 +53,8 @@
 
 // Globals
 
-static int COLS, ROWS;
-static int RX_ROWS, SEP_ROW, IN_ROW0, IN_ROW1;
+static int cols, rows;
+static int rx_rows, sep_row, in_row0, in_row1;
 
 static int sockfd = -1; /* Socket file descriptor */
 static struct libusb_device_handle *keyboard = NULL;
@@ -82,18 +82,16 @@ static long long held_next_ms = 0;
 extern struct fb_var_screeninfo fb_vinfo;
 
 static void compute_screen_layout(void) {
-    //  FONT_WIDTH=8 => 16 pixels per char
-    //  FONT_HEIGHT=16 => 32 pixels per char
-  COLS = (int)(fb_vinfo.xres / 16);
-  ROWS = (int)(fb_vinfo.yres / 32);
+  cols = (int)(fb_vinfo.xres / 16);
+  rows = (int)(fb_vinfo.yres / 32);
 
-  if (COLS < 10) COLS = 10;
-  if (ROWS < 6)  ROWS = 6;
+  if (cols < 10) cols = 10;
+  if (rows < 6)  rows = 6;
 
-  RX_ROWS = ROWS - 3;
-  SEP_ROW = ROWS - 3;
-  IN_ROW0 = ROWS - 2;
-  IN_ROW1 = ROWS - 1;
+  rx_rows = rows - 3;
+  sep_row = rows - 3;
+  in_row0 = rows - 2;
+  in_row1 = rows - 1;
 }
 
 
@@ -104,20 +102,20 @@ static long long now_ms(void) {
 }
 
 static void clear_line(int row){
-  for (int c = 0; c < COLS; c++){
+  for (int c = 0; c < cols; c++){
     fbputchar(' ', row, c);
   }
 }
 
 static void clear_screen(void) {
-  for (int r = 0; r < ROWS; r++) {
+  for (int r = 0; r < rows; r++) {
     clear_line(r);
   }
 }
 
 static void draw_separator(void) {
-  for (int c = 0; c < COLS; c++) {
-    fbputchar('-', SEP_ROW, c);
+  for (int c = 0; c < cols; c++) {
+    fbputchar('-', sep_row, c);
   }
 }
 
@@ -125,7 +123,7 @@ static void rx_newline(void) {
   rx_row++;
   rx_col = 0;
 
-  if (rx_row >= RX_ROWS) {
+  if (rx_row >= rx_rows) {
     rx_row = 0; /* wrap to top */
   }
   clear_line(rx_row);
@@ -139,14 +137,14 @@ static void rx_putc(char ch) {
     return;
   }
 
-  if (rx_col >= COLS) {
+  if (rx_col >= cols) {
     rx_newline();
   }
 
   fbputchar(ch, rx_row, rx_col);
   rx_col++;
 
-  if (rx_col >= COLS) {
+  if (rx_col >= cols) {
     rx_newline();
   }
 }
@@ -159,15 +157,15 @@ static void rx_puts_wrapped(const char *s) {
 
 //  Render input area (bottom two rows)
 static void render_input(void) {
-  clear_line(IN_ROW0);
-  clear_line(IN_ROW1);
+  clear_line(in_row0);
+  clear_line(in_row1);
 
   // Compose PROMPT + input
   char disp[INPUT_MAX + 8];
   snprintf(disp, sizeof(disp), "%s%.*s", PROMPT, input_len, input_buf);
 
   int total = (int)strlen(disp);
-  int max_chars = 2 * COLS;
+  int max_chars = 2 * cols;
 
   if (total > max_chars) {
     // If user typed too much, show only the last 2*COLS chars
@@ -177,19 +175,19 @@ static void render_input(void) {
     total = max_chars;
   }
 
-  for (int i = 0; i < total && i < 2 * COLS; i++) {
-    int r = (i < COLS) ? IN_ROW0 : IN_ROW1;
-    int c = (i < COLS) ? i : (i - COLS);
+  for (int i = 0; i < total && i < 2 * cols; i++) {
+    int r = (i < cols) ? in_row0 : in_row1;
+    int c = (i < cols) ? i : (i - cols);
     fbputchar(disp[i], r, c);
   }
 
   /* Cursor position relative to start of input area */
   int cursor_pos = (int)strlen(PROMPT) + input_cur;
   if (cursor_pos < 0) cursor_pos = 0;
-  if (cursor_pos >= 2 * COLS) cursor_pos = 2 * COLS - 1;
+  if (cursor_pos >= 2 * cols) cursor_pos = 2 * cols - 1;
 
-  int cr = (cursor_pos < COLS) ? IN_ROW0 : IN_ROW1;
-  int cc = (cursor_pos < COLS) ? cursor_pos : (cursor_pos - COLS);
+  int cr = (cursor_pos < cols) ? in_row0 : in_row1;
+  int cc = (cursor_pos < cols) ? cursor_pos : (cursor_pos - cols);
 
   /* Draw a simple visible cursor */
   fbputchar('_', cr, cc);
