@@ -2,7 +2,7 @@
  *
  * CSEE 4840 Lab 2 for 2019
  *
- * Name/UNI: Please Changeto Yourname (pcy2301)
+ * Name/UNI: zz3427 Gerald Zhao; dc3949 Derrick Chen; zw3161 Zening Wang
  */
 #include "fbputchar.h"
 #include <stdio.h>
