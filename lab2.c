@@ -51,6 +51,23 @@
 #define REPEAT_DELAY_MS 400
 #define REPEAT_RATE_MS  45
 
+//  Forward declarations 
+static void render_input(void);
+static int max_input_chars(void);
+static void clear_screen(void);
+static void draw_separator(void);
+static void clear_line(int row);
+
+static void rx_newline(void);
+static void rx_putc(char ch);
+static void rx_puts_wrapped(const char *s);
+
+static void input_insert_char(char ch);
+static void input_backspace(void);
+static void input_left(void);
+static void input_right(void);
+static void input_clear(void);
+
 // Globals
 
 static int cols, rows;
