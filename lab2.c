@@ -499,22 +499,13 @@ int main()
 
         handle_keycode(mods, kc);
 
-        // start repeat tracking
-        for (int i = 0; i < 6; i++) {
-          uint8_t kc = packet.keycode[i];
-            if (kc != 0 && !key_in_list(kc, prev_keys)) {
-            handle_keycode(mods, kc);
-
-            held_keycode = kc;
-            held_mods = mods;
-            held_active = 1;
-            held_next_ms = now_ms() + REPEAT_DELAY_MS;
-            }
+        if (!mods_changed) {
+          held_keycode = kc;
+          held_mods = mods;
+          held_active = 1;
+          held_next_ms = now_ms() + REPEAT_DELAY_MS;
         }
-        held_keycode = kc;
-        held_mods = mods;
-        held_active = 1;
-        held_next_ms = now_ms() + REPEAT_DELAY_MS;
+        
       }
     }
     prev_mods = mods;
