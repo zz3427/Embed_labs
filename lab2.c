@@ -487,6 +487,12 @@ int main()
 
     /* Handle newly pressed keys */
     for (int i = 0; i < 6; i++) {
+
+      uint8_t mods = packet.modifiers;
+      int mods_changed = (mods != prev_mods);
+
+      int suppress_repeat_this_packet = mods_changed;
+
       uint8_t kc = packet.keycode[i];
       if (kc != 0 && !key_in_list(kc, prev_keys)) {
 
@@ -512,29 +518,25 @@ int main()
 
 
     /* Key repeat: if held key still present in current report */
-    if (held_active) {
-      int still_down = 0;
+  if (held_active) {
+    int still_down = 0;
       for (int i = 0; i < 6; i++) {
-        if (packet.keycode[i] == held_keycode) {
-          still_down = 1;
-          break;
-        }
+        if (packet.keycode[i] == held_keycode) { still_down = 1; break; }
       }
 
       if (!still_down) {
         held_active = 0;
-      } else {
+      } else if (!suppress_repeat_this_packet) {   // <-- ADD THIS
         long long t = now_ms();
         if (t >= held_next_ms) {
-          /* Repeat only for sensible keys */
           if (held_keycode == 0x2a || held_keycode == 0x4f || held_keycode == 0x50 ||
-              hid_to_ascii(held_keycode, shift_down(held_mods))) {
+          hid_to_ascii(held_keycode, shift_down(held_mods))) {
             handle_keycode(held_mods, held_keycode);
           }
           held_next_ms = t + REPEAT_RATE_MS;
         }
       }
-    }
+  }
 
     /* Save previous keycodes */
     memcpy(prev_keys, packet.keycode, 6);
