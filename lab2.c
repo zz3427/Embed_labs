@@ -642,6 +642,29 @@ static long long held_next_ms = 0;
 /* defined in fbputchar.c */
 extern struct fb_var_screeninfo fb_vinfo;
 
+static int rx_lines_needed_for(const char *s, int start_col) {
+  int lines = 1;
+  int col = start_col;
+
+  for (const char *p = s; *p; p++) {
+    char ch = *p;
+    if (ch == '\r') continue;
+
+    if (ch == '\n') {
+      lines++;
+      col = 0;
+      continue;
+    }
+
+    col++;
+    if (col >= cols) {
+      lines++;
+      col = 0;
+    }
+  }
+  return lines;
+}
+
 static void compute_screen_layout(void) {
   /* fbputchar draws with 2x scaling:
      width  = FONT_WIDTH*2  = 16 px/char
@@ -913,6 +936,20 @@ static void *network_thread_f(void *ignored) {
     recvBuf[n] = '\0';
 
     pthread_mutex_lock(&fb_lock);
+
+    /* Pre-clear if this incoming chunk won't fit in remaining receive rows */
+    int remaining = rx_rows - rx_row;                 // rows left including current row
+    int need = rx_lines_needed_for(recvBuf, rx_col);  // how many lines this chunk will take
+
+    if (need > remaining) {
+      clear_screen();
+      draw_separator();
+      rx_row = 0;
+      rx_col = 0;
+      render_input();          // keep input visible
+      clear_line(rx_row);      // optional: ensure first rx row is blank
+    }
+
     rx_puts_wrapped(recvBuf);
     render_input();
     pthread_mutex_unlock(&fb_lock);
