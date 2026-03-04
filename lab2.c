@@ -566,7 +566,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-// arthur.cs.columbia.edu */
+/* arthur.cs.columbia.edu */
 #define SERVER_HOST "128.59.19.114"
 #define SERVER_PORT 42000
 
@@ -575,11 +575,11 @@
 #define INPUT_MAX 256
 #define PROMPT "> "
 
-// Key repeat */
+/* Key repeat */
 #define REPEAT_DELAY_MS 400
 #define REPEAT_RATE_MS  45
 
-// ===== Forward declarations ===== */
+/* ===== Forward declarations ===== */
 static void compute_screen_layout(void);
 
 static long long now_ms(void);
@@ -611,7 +611,7 @@ static void handle_keycode(uint8_t mods, uint8_t kc);
 static int key_in_list(uint8_t kc, const uint8_t list[6]);
 static void *network_thread_f(void *ignored);
 
-// ===== Globals ===== */
+/* ===== Globals ===== */
 static int cols, rows;
 static int rx_rows, sep_row, in_row0, in_row1;
 
@@ -624,22 +624,22 @@ static pthread_mutex_t fb_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static uint8_t prev_mods = 0;
 
-// Receive cursor */
+/* Receive cursor */
 static int rx_row = 0;
 static int rx_col = 0;
 
-// Input state */
+/* Input state */
 static char input_buf[INPUT_MAX];
 static int input_len = 0;
 static int input_cur = 0;
 
-// Repeat state */
+/* Repeat state */
 static uint8_t held_keycode = 0;
 static uint8_t held_mods = 0;
 static int held_active = 0;
 static long long held_next_ms = 0;
 
-// defined in fbputchar.c */
+/* defined in fbputchar.c */
 extern struct fb_var_screeninfo fb_vinfo;
 
 static int rx_lines_needed_for(const char *s, int start_col) {
@@ -666,7 +666,7 @@ static int rx_lines_needed_for(const char *s, int start_col) {
 }
 
 static void compute_screen_layout(void) {
-  // fbputchar draws with 2x scaling:
+  /* fbputchar draws with 2x scaling:
      width  = FONT_WIDTH*2  = 16 px/char
      height = FONT_HEIGHT*2 = 32 px/char */
   cols = (int)(fb_vinfo.xres / 16);
@@ -687,7 +687,7 @@ static long long now_ms(void) {
   return (long long)tv.tv_sec * 1000LL + tv.tv_usec / 1000LL;
 }
 
-// ===== Framebuffer helpers ===== */
+/* ===== Framebuffer helpers ===== */
 static void clear_line(int row) {
   for (int c = 0; c < cols; c++) fbputchar(' ', row, c);
 }
@@ -700,13 +700,13 @@ static void draw_separator(void) {
   for (int c = 0; c < cols; c++) fbputchar('-', sep_row, c);
 }
 
-// ===== Receive region printing ===== */
+/* ===== Receive region printing ===== */
 static void rx_newline(void) {
   rx_row++;
   rx_col = 0;
 
   if (rx_row >= rx_rows) {
-    // Requirement: once screen is full, clear whole screen */
+    /* Requirement: once screen is full, clear whole screen */
     clear_screen();
     draw_separator();
     rx_row = 0;
@@ -736,10 +736,10 @@ static void rx_puts_wrapped(const char *s) {
   for (const char *p = s; *p; p++) rx_putc(*p);
 }
 
-// ===== Input rendering / editing ===== */
+/* ===== Input rendering / editing ===== */
 static int max_input_chars(void) {
   int prompt_len = (int)strlen(PROMPT);
-  int cap = 2 * cols - prompt_len - 1; // keep room for cursor */
+  int cap = 2 * cols - prompt_len - 1; /* keep room for cursor */
   if (cap < 0) cap = 0;
   if (cap > INPUT_MAX - 1) cap = INPUT_MAX - 1;
   return cap;
@@ -755,7 +755,7 @@ static void render_input(void) {
   int total = (int)strlen(disp);
   int max_chars = 2 * cols;
   if (total > max_chars) {
-    // should not happen due to cap, but safe */
+    /* should not happen due to cap, but safe */
     total = max_chars;
     disp[total] = '\0';
   }
@@ -813,7 +813,7 @@ static void input_right(void) {
   if (input_cur < input_len) input_cur++;
 }
 
-// ===== HID mapping ===== */
+/* ===== HID mapping ===== */
 static int shift_down(uint8_t mods) {
   return (mods & 0x02) || (mods & 0x20);
 }
@@ -848,7 +848,7 @@ static char hid_to_ascii(uint8_t keycode, int shift) {
   }
 }
 
-// ===== Sending / key handling ===== */
+/* ===== Sending / key handling ===== */
 static void send_current_input(void) {
   char out[INPUT_MAX + 4];
   int n = snprintf(out, sizeof(out), "%.*s\n", input_len, input_buf);
@@ -856,7 +856,7 @@ static void send_current_input(void) {
 
   (void)write(sockfd, out, (size_t)n);
 
-  // No local echo to avoid duplicates (<ip> ... will come from server) */
+  /* No local echo to avoid duplicates (<ip> ... will come from server) */
   pthread_mutex_lock(&fb_lock);
   input_clear();
   render_input();
@@ -866,14 +866,14 @@ static void send_current_input(void) {
 static void handle_keycode(uint8_t mods, uint8_t kc) {
   if (kc == 0) return;
 
-  // ESC */
+  /* ESC */
   if (kc == 0x29) {
     pthread_cancel(network_thread);
     if (sockfd >= 0) close(sockfd);
     exit(0);
   }
 
-  // Enter */
+  /* Enter */
   if (kc == 0x28) {
     if (input_len > 0) {
       send_current_input();
@@ -886,7 +886,7 @@ static void handle_keycode(uint8_t mods, uint8_t kc) {
     return;
   }
 
-  // Backspace */
+  /* Backspace */
   if (kc == 0x2a) {
     pthread_mutex_lock(&fb_lock);
     input_backspace();
@@ -895,7 +895,7 @@ static void handle_keycode(uint8_t mods, uint8_t kc) {
     return;
   }
 
-  // Left / Right */
+  /* Left / Right */
   if (kc == 0x50) {
     pthread_mutex_lock(&fb_lock);
     input_left();
@@ -911,7 +911,7 @@ static void handle_keycode(uint8_t mods, uint8_t kc) {
     return;
   }
 
-  // Printable */
+  /* Printable */
   char ch = hid_to_ascii(kc, shift_down(mods));
   if (ch) {
     pthread_mutex_lock(&fb_lock);
@@ -921,13 +921,13 @@ static void handle_keycode(uint8_t mods, uint8_t kc) {
   }
 }
 
-// ===== Key helpers ===== */
+/* ===== Key helpers ===== */
 static int key_in_list(uint8_t kc, const uint8_t list[6]) {
   for (int i = 0; i < 6; i++) if (list[i] == kc) return 1;
   return 0;
 }
 
-// ===== Network thread ===== */
+/* ===== Network thread ===== */
 static void *network_thread_f(void *ignored) {
   char recvBuf[BUFFER_SIZE];
   int n;
@@ -937,29 +937,29 @@ static void *network_thread_f(void *ignored) {
 
     pthread_mutex_lock(&fb_lock);
 
-    // Pre-clear if this incoming chunk won't fit in remaining receive rows */
-    int remaining = rx_rows - rx_row;                 // rows left including current row
-    int need = rx_lines_needed_for(recvBuf, rx_col);  // how many lines this chunk will take
+  /* Pre-clear if this incoming chunk won't fit in remaining receive rows */
+  int remaining = rx_rows - rx_row;                 // rows left including current row
+  int need = rx_lines_needed_for(recvBuf, rx_col);  // how many lines this chunk will take
 
-    if (need > remaining) {
-      clear_screen();
-      draw_separator();
-      rx_row = 0;
-      rx_col = 0;
-      render_input();          // keep input visible
-      clear_line(rx_row);      // optional: ensure first rx row is blank
-    }
+  if (need > remaining) {
+    clear_screen();
+    draw_separator();
+    rx_row = 0;
+    rx_col = 0;
+    render_input();          // keep input visible
+    clear_line(rx_row);      // optional: ensure first rx row is blank
+  }
 
-    rx_puts_wrapped(recvBuf);
-    render_input();
-    pthread_mutex_unlock(&fb_lock);
+  rx_puts_wrapped(recvBuf);
+  render_input();
+  pthread_mutex_unlock(&fb_lock);
 
     write(STDOUT_FILENO, recvBuf, (size_t)n);
   }
   return NULL;
 }
 
-// ===== main ===== */
+/* ===== main ===== */
 int main(void) {
   int err;
   struct sockaddr_in serv_addr;
@@ -1019,7 +1019,7 @@ int main(void) {
     uint8_t mods = packet.modifiers;
     int mods_changed = (mods != prev_mods);
 
-    // Detect “all-zero glitch report” when modifiers change.
+    /* Detect “all-zero glitch report” when modifiers change.
        If we accept it, a held key looks released then "new" again. */
     int all_zero = 1;
     for (int i = 0; i < 6; i++) {
@@ -1027,16 +1027,16 @@ int main(void) {
     }
     if (mods_changed && all_zero) {
       prev_mods = mods;
-      // Do NOT overwrite prev_keys. Skip processing this packet. */
+      /* Do NOT overwrite prev_keys. Skip processing this packet. */
       continue;
     }
 
-    // Deduplicate keys within this packet */
+    /* Deduplicate keys within this packet */
     uint8_t seen[6] = {0};
 
     int any_new_press = 0;
 
-    // Handle newly pressed keys */
+    /* Handle newly pressed keys */
     for (int i = 0; i < 6; i++) {
       uint8_t kc = packet.keycode[i];
       if (kc == 0) continue;
@@ -1048,7 +1048,7 @@ int main(void) {
         any_new_press = 1;
         handle_keycode(mods, kc);
 
-        // Arm repeat for this key (only once per new press) */
+        /* Arm repeat for this key (only once per new press) */
         held_keycode = kc;
         held_mods = mods;
         held_active = 1;
@@ -1058,7 +1058,7 @@ int main(void) {
 
     prev_mods = mods;
 
-    // Repeat: only if held key still down, no modifier glitch, and not same-cycle new press */
+    /* Repeat: only if held key still down, no modifier glitch, and not same-cycle new press */
     if (held_active) {
       int still_down = 0;
       for (int i = 0; i < 6; i++) {
@@ -1079,7 +1079,7 @@ int main(void) {
       }
     }
 
-    // Save previous keycodes */
+    /* Save previous keycodes */
     memcpy(prev_keys, packet.keycode, 6);
   }
 
