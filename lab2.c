@@ -488,11 +488,6 @@ int main()
     /* Handle newly pressed keys */
     for (int i = 0; i < 6; i++) {
 
-      uint8_t mods = packet.modifiers;
-      int mods_changed = (mods != prev_mods);
-
-      int suppress_repeat_this_packet = mods_changed;
-
       uint8_t kc = packet.keycode[i];
       if (kc != 0 && !key_in_list(kc, prev_keys)) {
 
@@ -519,6 +514,12 @@ int main()
 
     /* Key repeat: if held key still present in current report */
   if (held_active) {
+
+    uint8_t mods = packet.modifiers;
+    int mods_changed = (mods != prev_mods);
+
+    int suppress_repeat_this_packet = mods_changed;
+
     int still_down = 0;
       for (int i = 0; i < 6; i++) {
         if (packet.keycode[i] == held_keycode) { still_down = 1; break; }
