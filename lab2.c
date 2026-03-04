@@ -63,6 +63,8 @@ static uint8_t endpoint_address = 0;
 static pthread_t network_thread;
 static pthread_mutex_t fb_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static uint8_t prev_mods = 0;
+
 /* Receive cursor state */
 static int rx_row = 0;
 static int rx_col = 0;
@@ -124,8 +126,16 @@ static void rx_newline(void) {
   rx_col = 0;
 
   if (rx_row >= rx_rows) {
-    rx_row = 0; /* wrap to top */
+    // Clear whole screen 
+    clear_screen();
+    draw_separator();
+    rx_row = 0;
+    rx_col = 0;
+
+    // re-render input so it’s still visible 
+    render_input();
   }
+
   clear_line(rx_row);
 }
 
@@ -201,6 +211,8 @@ static void input_clear(void) {
 }
 
 static void input_insert_char(char ch) {
+  int cap = max_input_chars();
+  if (input_len >= cap) return;
   if (input_len >= INPUT_MAX - 1) return;
   if (input_cur < 0) input_cur = 0;
   if (input_cur > input_len) input_cur = input_len;
@@ -234,6 +246,14 @@ static void input_right(void) {
 static int shift_down(uint8_t mods) {
   /* Left shift bit 0x02, right shift bit 0x20 */
   return (mods & 0x02) || (mods & 0x20);
+}
+
+static int max_input_chars(void) {
+  int prompt_len = (int)strlen(PROMPT);
+  int cap = 2 * cols - prompt_len - 1;   // -1 so cursor fits
+  if (cap < 0) cap = 0;
+  if (cap > INPUT_MAX - 1) cap = INPUT_MAX - 1;
+  return cap;
 }
 
 // kayboard HID Mapping
@@ -279,7 +299,6 @@ static void send_current_input(void) {
   (void)write(sockfd, out, (size_t)n);
 
   pthread_mutex_lock(&fb_lock);
-  rx_puts_wrapped(out);   /* show what we sent */
   input_clear();
   render_input();
   pthread_mutex_unlock(&fb_lock);
@@ -447,20 +466,42 @@ int main()
     if (transferred != (int)sizeof(packet)) continue;
 
     uint8_t mods = packet.modifiers;
+    int mods_changed = (mods != prev_mods);
 
     /* Handle newly pressed keys */
     for (int i = 0; i < 6; i++) {
       uint8_t kc = packet.keycode[i];
       if (kc != 0 && !key_in_list(kc, prev_keys)) {
+
+        int is_special =
+          (kc == 0x28) || (kc == 0x2a) || (kc == 0x4f) || (kc == 0x50) || (kc == 0x29);
+
+        if (mods_changed && !is_special) {
+          continue;  // prevents “shift tap re-types held letter”
+        }
+
         handle_keycode(mods, kc);
 
-        /* Start repeat tracking (printable keys + backspace + arrows) */
+        // start repeat tracking
+        for (int i = 0; i < 6; i++) {
+          uint8_t kc = packet.keycode[i];
+            if (kc != 0 && !key_in_list(kc, prev_keys)) {
+            handle_keycode(mods, kc);
+
+            held_keycode = kc;
+            held_mods = mods;
+            held_active = 1;
+            held_next_ms = now_ms() + REPEAT_DELAY_MS;
+            }
+        }
         held_keycode = kc;
         held_mods = mods;
         held_active = 1;
         held_next_ms = now_ms() + REPEAT_DELAY_MS;
       }
     }
+    prev_mods = mods;
+
 
     /* Key repeat: if held key still present in current report */
     if (held_active) {
